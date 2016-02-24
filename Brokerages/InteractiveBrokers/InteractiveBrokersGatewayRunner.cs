@@ -75,13 +75,10 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 processStartInfo.RedirectStandardOutput = false;
                 var process = Process.Start(processStartInfo);
                 ScriptProcessID = process.Id;
-
-                // wait for 30 seconds so it can start up completely
-                Thread.Sleep(30000);
             }
             catch (Exception err)
             {
-                Log.Error("InteractiveBrokersGatewayRunner.Start(): " + err.Message);
+                Log.Error(err);
             }
         }
 
@@ -111,7 +108,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             }
             catch (Exception err)
             {
-                Log.Error("InteractiveBrokersGatewayRunner.Stop(): " + err.Message);
+                Log.Error(err);
             }
         }
 

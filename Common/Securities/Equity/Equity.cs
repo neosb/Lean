@@ -13,7 +13,11 @@
  * limitations under the License.
 */
 
+using System;
 using QuantConnect.Data;
+using QuantConnect.Orders.Fees;
+using QuantConnect.Orders.Fills;
+using QuantConnect.Orders.Slippage;
 
 namespace QuantConnect.Securities.Equity 
 {
@@ -24,31 +28,35 @@ namespace QuantConnect.Securities.Equity
     public class Equity : Security
     {
         /// <summary>
-        /// Construct the Equity Object
+        /// The default number of days required to settle an equity sale
         /// </summary>
-        public Equity(SubscriptionDataConfig config, decimal leverage, bool isDynamicallyLoadedData = false)
-            : this(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours(config), config, leverage, isDynamicallyLoadedData)
-        {
-            // this constructor is provided for backward compatibility
+        public const int DefaultSettlementDays = 3;
 
-            // should we even keep this?
-        }
+        /// <summary>
+        /// The default time of day for settlement
+        /// </summary>
+        public static readonly TimeSpan DefaultSettlementTime = new TimeSpan(8, 0, 0);
 
         /// <summary>
         /// Construct the Equity Object
         /// </summary>
-        public Equity(SecurityExchangeHours exchangeHours, SubscriptionDataConfig config, decimal leverage, bool isDynamicallyLoadedData = false) 
-            : base(exchangeHours, config, leverage, isDynamicallyLoadedData) 
+        public Equity(SecurityExchangeHours exchangeHours, SubscriptionDataConfig config, Cash quoteCurrency, SymbolProperties symbolProperties)
+            : base(
+                config,
+                quoteCurrency,
+                symbolProperties,
+                new EquityExchange(exchangeHours),
+                new EquityCache(),
+                new SecurityPortfolioModel(),
+                new ImmediateFillModel(),
+                new InteractiveBrokersFeeModel(),
+                new ConstantSlippageModel(0m),
+                new ImmediateSettlementModel(),
+                new SecurityMarginModel(2m),
+                new EquityDataFilter()
+                )
         {
-            //Holdings for new Vehicle:
-            Cache = new EquityCache();
-            Exchange = new EquityExchange(exchangeHours);
-            DataFilter = new EquityDataFilter();
-            //Set the Equity Transaction Model
-            TransactionModel = new EquityTransactionModel();
-            PortfolioModel = new EquityPortfolioModel();
-            MarginModel = new EquityMarginModel(leverage);
-            Holdings = new EquityHolding(this, TransactionModel, MarginModel);
+            Holdings = new EquityHolding(this);
         }
     }
 }

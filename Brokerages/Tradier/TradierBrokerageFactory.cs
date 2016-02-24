@@ -22,6 +22,7 @@ using QuantConnect.Configuration;
 using QuantConnect.Interfaces;
 using QuantConnect.Logging;
 using QuantConnect.Packets;
+using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.Tradier
 {
@@ -135,6 +136,14 @@ namespace QuantConnect.Brokerages.Tradier
                 data.Add("tradier-lifespan", lifeSpan);
                 return data;
             }
+        }
+
+        /// <summary>
+        /// Gets a new instance of the <see cref="TradierBrokerageModel"/>
+        /// </summary>
+        public override IBrokerageModel BrokerageModel
+        {
+            get { return new TradierBrokerageModel(); }
         }
 
         /// <summary>

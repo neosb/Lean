@@ -32,7 +32,7 @@ namespace QuantConnect.Algorithm
         /// <param name="selector">Selects a value from the BaseData, if null defaults to the .Value property (x => x.Value)</param>
         /// <param name="fieldName">The name of the field being selected</param>
         /// <returns>A new Identity indicator for the specified symbol and selector</returns>
-        public Identity Identity(string symbol, Func<BaseData, decimal> selector = null, string fieldName = null)
+        public Identity Identity(Symbol symbol, Func<BaseData, decimal> selector = null, string fieldName = null)
         {
             var resolution = GetSubscription(symbol).Resolution;
             return Identity(symbol, resolution, selector, fieldName);
@@ -47,18 +47,36 @@ namespace QuantConnect.Algorithm
         /// <param name="selector">Selects a value from the BaseData, if null defaults to the .Value property (x => x.Value)</param>
         /// <param name="fieldName">The name of the field being selected</param>
         /// <returns>A new Identity indicator for the specified symbol and selector</returns>
-        public Identity Identity(string symbol, Resolution resolution, Func<BaseData, decimal> selector = null, string fieldName = null)
+        public Identity Identity(Symbol symbol, Resolution resolution, Func<BaseData, decimal> selector = null, string fieldName = null)
         {
             string name = CreateIndicatorName(symbol, fieldName ?? "close", resolution);
             var identity = new Identity(name);
             RegisterIndicator(symbol, identity, resolution, selector);
             return identity;
         }
+
+        /// <summary>
+        /// Creates a new Identity indicator for the symbol The indicator will be automatically
+        /// updated on the symbol's subscription resolution
+        /// </summary>
+        /// <param name="symbol">The symbol whose values we want as an indicator</param>
+        /// <param name="resolution">The desired resolution of the data</param>
+        /// <param name="selector">Selects a value from the BaseData, if null defaults to the .Value property (x => x.Value)</param>
+        /// <param name="fieldName">The name of the field being selected</param>
+        /// <returns>A new Identity indicator for the specified symbol and selector</returns>
+        public Identity Identity(Symbol symbol, TimeSpan resolution, Func<BaseData, decimal> selector = null, string fieldName = null)
+        {
+            string name = string.Format("{0}({1}_{2})", symbol, fieldName ?? "close", resolution);
+            var identity = new Identity(name);
+            RegisterIndicator(symbol, identity, ResolveConsolidator(symbol, resolution), selector);
+            return identity;
+        }
+
         /// <summary>
         /// Creates a new IchimokuKinkoHyo indicator for the symbol. The indicator will be automatically
         /// updated on the given resolution.
         /// </summary>
-        /// <param name="symbol">The symbol whose ATR we want</param>
+        /// <param name="symbol">The symbol whose ICHIMOKU we want</param>
         /// <param name="tenkanPeriod">The period to calculate the Tenkan-sen period</param>
         /// <param name="kijunPeriod">The period to calculate the Kijun-sen period</param>
         /// <param name="senkouAPeriod">The period to calculate the Tenkan-sen period</param>
@@ -67,13 +85,12 @@ namespace QuantConnect.Algorithm
         /// <param name="senkouBDelayPeriod">The period to calculate the Tenkan-sen period</param>
         /// <param name="resolution">The resolution</param>
         /// <returns>A new IchimokuKinkoHyo indicator with the specified periods and delays</returns>
-        public IchimokuKinkoHyo ICHIMOKU(string symbol, int tenkanPeriod, int kijunPeriod, int senkouAPeriod, int senkouBPeriod, int senkouADelayPeriod, int senkouBDelayPeriod, Resolution? resolution = null)
+        public IchimokuKinkoHyo ICHIMOKU(Symbol symbol, int tenkanPeriod, int kijunPeriod, int senkouAPeriod, int senkouBPeriod, int senkouADelayPeriod, int senkouBDelayPeriod, Resolution? resolution = null)
         {
             var name = CreateIndicatorName(symbol, string.Format("ICHIMOKU({0},{1})", tenkanPeriod, kijunPeriod), resolution);
             var ichimoku = new IchimokuKinkoHyo(name, tenkanPeriod, kijunPeriod, senkouAPeriod, senkouBPeriod, senkouADelayPeriod, senkouBDelayPeriod);
             RegisterIndicator(symbol, ichimoku, resolution);
             return ichimoku;
-
         }
 
         /// <summary>
@@ -86,7 +103,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>A new AverageTrueRange indicator with the specified smoothing type and period</returns>
-        public AverageTrueRange ATR(string symbol, int period, MovingAverageType type = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public AverageTrueRange ATR(Symbol symbol, int period, MovingAverageType type = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             string name = CreateIndicatorName(symbol, "ATR" + period, resolution);
             var atr = new AverageTrueRange(name, period, type);
@@ -103,7 +120,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The ExponentialMovingAverage for the given parameters</returns>
-        public ExponentialMovingAverage EMA(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public ExponentialMovingAverage EMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "EMA" + period, resolution);
             var ema = new ExponentialMovingAverage(name, period);
@@ -120,7 +137,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The SimpleMovingAverage for the given parameters</returns>
-        public SimpleMovingAverage SMA(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public SimpleMovingAverage SMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "SMA" + period, resolution);
             var sma = new SimpleMovingAverage(name, period);
@@ -139,7 +156,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The moving average convergence divergence between the fast and slow averages</returns>
-        public MovingAverageConvergenceDivergence MACD(string symbol, int fastPeriod, int slowPeriod, int signalPeriod, MovingAverageType type = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public MovingAverageConvergenceDivergence MACD(Symbol symbol, int fastPeriod, int slowPeriod, int signalPeriod, MovingAverageType type = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, string.Format("MACD({0},{1})", fastPeriod, slowPeriod), resolution);
             var macd = new MovingAverageConvergenceDivergence(name, fastPeriod, slowPeriod, signalPeriod, type);
@@ -156,7 +173,7 @@ namespace QuantConnect.Algorithm
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null and the symbol is of type TradeBar defaults to the High property, 
         /// otherwise it defaults to Value property of BaseData (x => x.Value)</param>
         /// <returns>A Maximum indicator that compute the max value and the periods since the max value</returns>
-        public Maximum MAX(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public Maximum MAX(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, "MAX" + period, resolution);
             var max = new Maximum(name, period);
@@ -185,7 +202,7 @@ namespace QuantConnect.Algorithm
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null and the symbol is of type TradeBar defaults to the Low property, 
         /// otherwise it defaults to Value property of BaseData (x => x.Value)</param>
         /// <returns>A Minimum indicator that compute the in value and the periods since the min value</returns>
-        public Minimum MIN(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public Minimum MIN(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, "MIN" + period, resolution);
             var min = new Minimum(name, period);
@@ -213,7 +230,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>An AroonOscillator configured with the specied periods</returns>
-        public AroonOscillator AROON(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public AroonOscillator AROON(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             return AROON(symbol, period, period, resolution, selector);
         }
@@ -226,8 +243,8 @@ namespace QuantConnect.Algorithm
         /// <param name="downPeriod">The look back period for computing number of periods since minimum</param>
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
-        /// <returns>An AroonOscillator configured with the specied periods</returns>
-        public AroonOscillator AROON(string symbol, int upPeriod, int downPeriod, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        /// <returns>An AroonOscillator configured with the specified periods</returns>
+        public AroonOscillator AROON(Symbol symbol, int upPeriod, int downPeriod, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             var name = CreateIndicatorName(symbol, string.Format("AROON({0},{1})", upPeriod, downPeriod), resolution);
             var aroon = new AroonOscillator(name, upPeriod, downPeriod);
@@ -239,12 +256,12 @@ namespace QuantConnect.Algorithm
         /// Creates a new Momentum indicator. This will compute the absolute n-period change in the security.
         /// The indicator will be automatically updated on the given resolution.
         /// </summary>
-        /// <param name="symbol">The symbol whose momentumwe want</param>
+        /// <param name="symbol">The symbol whose momentum we want</param>
         /// <param name="period">The period over which to compute the momentum</param>
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The momentum indicator for the requested symbol over the specified period</returns>
-        public Momentum MOM(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public Momentum MOM(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "MOM" + period, resolution);
             var momentum = new Momentum(name, period);
@@ -261,7 +278,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The momentum indicator for the requested symbol over the specified period</returns>
-        public MomentumPercent MOMP(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public MomentumPercent MOMP(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "MOMP" + period, resolution);
             var momentum = new MomentumPercent(name, period);
@@ -279,7 +296,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The RelativeStrengthIndex indicator for the requested symbol over the specified period</returns>
-        public RelativeStrengthIndex RSI(string symbol, int period, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public RelativeStrengthIndex RSI(Symbol symbol, int period, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, "RSI" + period, resolution);
             var rsi = new RelativeStrengthIndex(name, period, movingAverageType);
@@ -297,7 +314,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>The CommodityChannelIndex indicator for the requested symbol over the specified period</returns>
-        public CommodityChannelIndex CCI(string symbol, int period, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public CommodityChannelIndex CCI(Symbol symbol, int period, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             var name = CreateIndicatorName(symbol, "CCI" + period, resolution);
             var cci = new CommodityChannelIndex(name, period, movingAverageType);
@@ -314,7 +331,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The MoneyFlowIndex indicator for the requested symbol over the specified period</returns>
-        public MoneyFlowIndex MFI(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public MoneyFlowIndex MFI(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             var name = CreateIndicatorName(symbol, "MFI" + period, resolution);
             var mfi = new MoneyFlowIndex(name, period);
@@ -330,7 +347,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The StandardDeviation indicator for the requested symbol over the speified period</returns>
-        public StandardDeviation STD(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public StandardDeviation STD(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, "STD" + period, resolution);
             var std = new StandardDeviation(name, period);
@@ -348,7 +365,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>A BollingerBands configured with the specied period</returns>
-        public BollingerBands BB(string symbol, int period, decimal k, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public BollingerBands BB(Symbol symbol, int period, decimal k, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             var name = CreateIndicatorName(symbol, string.Format("BB({0},{1})", period, k), resolution);
             var bb = new BollingerBands(name, period, k, movingAverageType);
@@ -360,12 +377,12 @@ namespace QuantConnect.Algorithm
         /// Creates a new RateOfChange indicator. This will compute the n-period rate of change in the security.
         /// The indicator will be automatically updated on the given resolution.
         /// </summary>
-        /// <param name="symbol">The symbol whose rateofchange we want</param>
-        /// <param name="period">The period over which to compute the rateofchange</param>
+        /// <param name="symbol">The symbol whose RateOfChange we want</param>
+        /// <param name="period">The period over which to compute the RateOfChange</param>
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
-        /// <returns>The rateofchange indicator for the requested symbol over the specified period</returns>
-        public RateOfChange ROC(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        /// <returns>The RateOfChange indicator for the requested symbol over the specified period</returns>
+        public RateOfChange ROC(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "ROC" + period, resolution);
             var rateofchange = new RateOfChange(name, period);
@@ -377,12 +394,12 @@ namespace QuantConnect.Algorithm
         /// Creates a new RateOfChangePercent indicator. This will compute the n-period percentage rate of change in the security.
         /// The indicator will be automatically updated on the given resolution.
         /// </summary>
-        /// <param name="symbol">The symbol whose rateofchange we want</param>
-        /// <param name="period">The period over which to compute the rateofchangepercent</param>
+        /// <param name="symbol">The symbol whose RateOfChangePercent we want</param>
+        /// <param name="period">The period over which to compute the RateOfChangePercent</param>
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
-        /// <returns>The rateofchangepercent indicator for the requested symbol over the specified period</returns>
-        public RateOfChangePercent ROCP(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        /// <returns>The RateOfChangePercent indicator for the requested symbol over the specified period</returns>
+        public RateOfChangePercent ROCP(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "ROCP" + period, resolution);
             var rateofchangepercent = new RateOfChangePercent(name, period);
@@ -400,7 +417,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>The rateofchangepercent indicator for the requested symbol over the specified period</returns>
-        public WilliamsPercentR WILR(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public WilliamsPercentR WILR(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             string name = CreateIndicatorName(symbol, "WILR" + period, resolution);
             var williamspercentr = new WilliamsPercentR(name, period);
@@ -412,12 +429,12 @@ namespace QuantConnect.Algorithm
         /// Creates a new LinearWeightedMovingAverage indicator.  This indicator will linearly distribute
         /// the weights across the periods.  
         /// </summary>
-        /// <param name="symbol">The symbol whose Williams %R we want</param>
-        /// <param name="period">The period over which to compute the Williams %R</param>
+        /// <param name="symbol">The symbol whose LWMA we want</param>
+        /// <param name="period">The period over which to compute the LWMA</param>
         /// <param name="resolution">The resolution</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns></returns>
-        public LinearWeightedMovingAverage LWMA(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public LinearWeightedMovingAverage LWMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
         {
             string name = CreateIndicatorName(symbol, "LWMA" + period, resolution);
             var lwma = new LinearWeightedMovingAverage(name, period);
@@ -434,7 +451,7 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution.</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>The On Balance Volume indicator for the requested symbol.</returns>
-        public OnBalanceVolume OBV(string symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public OnBalanceVolume OBV(Symbol symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             var name = CreateIndicatorName(symbol, "OBV", resolution);
             var onBalanceVolume = new OnBalanceVolume(name);
@@ -451,7 +468,7 @@ namespace QuantConnect.Algorithm
         /// <param name="period">The period over which to compute the Average Directional Index</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>The Average Directional Index indicator for the requested symbol.</returns>
-        public AverageDirectionalIndex ADX(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public AverageDirectionalIndex ADX(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
             var name = CreateIndicatorName(symbol, "ADX", resolution);
             var averageDirectionalIndex = new AverageDirectionalIndex(name, period);
@@ -460,20 +477,54 @@ namespace QuantConnect.Algorithm
         }
 
         /// <summary>
+        /// Creates a new Keltner Channels indicator. 
+        /// The indicator will be automatically updated on the given resolution.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Keltner Channel we seek</param>
+        /// <param name="period">The period over which to compute the Keltner Channels</param>
+        /// <param name="k">The number of multiples of the <see cref="AverageTrueRange"/> from the middle band of the Keltner Channels</param>
+        /// <param name="movingAverageType">Specifies the type of moving average to be used as the middle line of the Keltner Channel</param>
+        /// <param name="resolution">The resolution.</param> 
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
+        /// <returns>The Keltner Channel indicator for the requested symbol.</returns>
+        public KeltnerChannels KCH(Symbol symbol, int period, decimal k, MovingAverageType movingAverageType = MovingAverageType.Simple, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "KCH", resolution);
+            var keltnerChannels = new KeltnerChannels(name, period, k, movingAverageType);
+            RegisterIndicator(symbol, keltnerChannels, resolution, selector);
+            return keltnerChannels;
+        }
+
+        /// <summary>
         /// Creates a new Donchian Channel indicator which will compute the Upper Band and Lower Band.
         /// The indicator will be automatically updated on the given resolution.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Donchian Channel we seek.</param>
+        /// <param name="upperPeriod">The period over which to compute the upper Donchian Channel.</param>
+        /// <param name="lowerPeriod">The period over which to compute the lower Donchian Channel.</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
+        /// <returns>The Donchian Channel indicator for the requested symbol.</returns>
+        public DonchianChannel DCH(Symbol symbol, int upperPeriod, int lowerPeriod, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "DCH", resolution);
+            var donchianChannel = new DonchianChannel(name, upperPeriod, lowerPeriod);
+            RegisterIndicator(symbol, donchianChannel, resolution, selector);
+            return donchianChannel;
+        }
+
+        /// <summary>
+        /// Overload shorthand to create a new symmetric Donchian Channel indicator which
+        /// has the upper and lower channels set to the same period length.
         /// </summary>
         /// <param name="symbol">The symbol whose Donchian Channel we seek.</param>
         /// <param name="period">The period over which to compute the Donchian Channel.</param>
         /// <param name="resolution">The resolution.</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>The Donchian Channel indicator for the requested symbol.</returns>
-        public DonchianChannel DCH(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        public DonchianChannel DCH(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
-            var name = CreateIndicatorName(symbol, "DCH", resolution);
-            var donchianChannel = new DonchianChannel(name, period);
-            RegisterIndicator(symbol, donchianChannel, resolution, selector);
-            return donchianChannel;
+            return DCH(symbol, period, period, resolution, selector);
         }
 
         /// <summary>
@@ -485,7 +536,7 @@ namespace QuantConnect.Algorithm
         /// <param name="kPeriod">The sum period of the stochastic. Normally 14</param>
         /// <param name="dPeriod">The sum period of the stochastic. Normally 3</param>
         /// <returns>Stochastic indicator for the requested symbol.</returns>
-        public Stochastic STO(string symbol, int period, int kPeriod, int dPeriod, Resolution? resolution = null)
+        public Stochastic STO(Symbol symbol, int period, int kPeriod, int dPeriod, Resolution? resolution = null)
         {
             string name = CreateIndicatorName(symbol, "STO", resolution);
             var stoch = new Stochastic(name, period, kPeriod, dPeriod);
@@ -500,9 +551,315 @@ namespace QuantConnect.Algorithm
         /// <param name="resolution">The resolution.</param>
         /// <param name="period">The period of the stochastic. Normally 14</param>
         /// <returns>Stochastic indicator for the requested symbol.</returns>
-        public Stochastic STO(string symbol, int period, Resolution? resolution = null)
+        public Stochastic STO(Symbol symbol, int period, Resolution? resolution = null)
         {
             return STO(symbol, period, period, 3, resolution);
+        }
+
+        /// <summary>
+        /// Creates a new LogReturn indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose log return we seek</param>
+        /// <param name="period">The period of the log return.</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <returns>log return indicator for the requested symbol.</returns>
+        public LogReturn LOGR(Symbol symbol, int period, Resolution? resolution = null)
+        {
+            string name = CreateIndicatorName(symbol, "LOGR", resolution);
+            var logr = new LogReturn(name, period);
+            RegisterIndicator(symbol, logr, resolution);
+            return logr;
+        }
+
+        /// <summary>
+        /// Creates and registers a new Least Squares Moving Average instance.
+        /// </summary>
+        /// <param name="symbol">The symbol whose LSMA we seek.</param>
+        /// <param name="period">The LSMA period. Normally 14.</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar.</param>
+        /// <returns>A LeastSquaredMovingAverage configured with the specified period</returns>
+        public LeastSquaresMovingAverage LSMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "LSMA" + period, resolution);
+            var lsma = new LeastSquaresMovingAverage(name, period);
+            RegisterIndicator(symbol, lsma, resolution, selector);
+            return lsma;
+        }
+
+        /// <summary>
+        /// Creates a new Parabolic SAR indicator
+        /// </summary>
+        /// <param name="symbol">The symbol whose PSAR we seek</param>
+        /// <param name="afStart">Acceleration factor start value. Normally 0.02</param>
+        /// <param name="afIncrement">Acceleration factor increment value. Normally 0.02</param>
+        /// <param name="afMax">Acceleration factor max value. Normally 0.2</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
+        /// <returns>A ParabolicStopAndReverse configured with the specified periods</returns>
+        public ParabolicStopAndReverse PSAR(Symbol symbol, decimal afStart = 0.02m, decimal afIncrement = 0.02m, decimal afMax = 0.2m, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, string.Format("PSAR({0},{1},{2})", afStart, afIncrement, afMax), resolution);
+            var psar = new ParabolicStopAndReverse(name, afStart, afIncrement, afMax);
+            RegisterIndicator(symbol, psar, resolution, selector);
+            return psar;
+        }
+
+        /// <summary>
+        /// Creates a new Balance Of Power indicator.
+        /// The indicator will be automatically updated on the given resolution.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Balance Of Power we seek</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
+        /// <returns>The Balance Of Power indicator for the requested symbol.</returns>
+        public BalanceOfPower BOP(Symbol symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "BOP", resolution);
+            var bop = new BalanceOfPower(name);
+            RegisterIndicator(symbol, bop, resolution, selector);
+            return bop;
+        }
+
+        /// <summary>
+        /// Creates a new Variance indicator. This will return the population variance of samples over the specified period.
+        /// </summary>
+        /// <param name="symbol">The symbol whose VAR we want</param>
+        /// <param name="period">The period over which to compute the VAR</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The Variance indicator for the requested symbol over the speified period</returns>
+        public Variance VAR(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "VAR" + period, resolution);
+            var variance = new Variance(name, period);
+            RegisterIndicator(symbol, variance, resolution, selector);
+            return variance;
+        }
+
+        /// <summary>
+        /// Creates a new AccumulationDistribution indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose AD we want</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The AccumulationDistribution indicator for the requested symbol over the speified period</returns>
+        public AccumulationDistribution AD(Symbol symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "AD", resolution);
+            var ad = new AccumulationDistribution(name);
+            RegisterIndicator(symbol, ad, resolution, selector);
+            return ad;
+        }
+
+        /// <summary>
+        /// Creates a new AccumulationDistributionOscillator indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose ADOSC we want</param>
+        /// <param name="fastPeriod">The fast moving average period</param>
+        /// <param name="slowPeriod">The slow moving average period</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The AccumulationDistributionOscillator indicator for the requested symbol over the speified period</returns>
+        public AccumulationDistributionOscillator ADOSC(Symbol symbol, int fastPeriod, int slowPeriod, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, string.Format("ADOSC({0},{1})", fastPeriod, slowPeriod), resolution);
+            var adOsc = new AccumulationDistributionOscillator(name, fastPeriod, slowPeriod);
+            RegisterIndicator(symbol, adOsc, resolution, selector);
+            return adOsc;
+        }
+
+        /// <summary>
+        /// Creates a new TrueRange indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose TR we want</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The TrueRange indicator for the requested symbol.</returns>
+        public TrueRange TR(Symbol symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "TR", resolution);
+            var tr = new TrueRange(name);
+            RegisterIndicator(symbol, tr, resolution, selector);
+            return tr;
+        }
+
+        /// <summary>
+        /// Creates a new ChandeMomentumOscillator indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose CMO we want</param>
+        /// <param name="period">The period over which to compute the CMO</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The ChandeMomentumOscillator indicator for the requested symbol over the specified period</returns>
+        public ChandeMomentumOscillator CMO(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "CMO" + period, resolution);
+            var cmo = new ChandeMomentumOscillator(name, period);
+            RegisterIndicator(symbol, cmo, resolution, selector);
+            return cmo;
+        }
+
+        /// <summary>
+        /// Creates a new DoubleExponentialMovingAverage indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose DEMA we want</param>
+        /// <param name="period">The period over which to compute the DEMA</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The DoubleExponentialMovingAverage indicator for the requested symbol over the specified period</returns>
+        public DoubleExponentialMovingAverage DEMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "DEMA" + period, resolution);
+            var dema = new DoubleExponentialMovingAverage(name, period);
+            RegisterIndicator(symbol, dema, resolution, selector);
+            return dema;
+        }
+
+        /// <summary>
+        /// Creates a new TripleExponentialMovingAverage indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose TEMA we want</param>
+        /// <param name="period">The period over which to compute the TEMA</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The TripleExponentialMovingAverage indicator for the requested symbol over the specified period</returns>
+        public TripleExponentialMovingAverage TEMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "TEMA" + period, resolution);
+            var tema = new TripleExponentialMovingAverage(name, period);
+            RegisterIndicator(symbol, tema, resolution, selector);
+            return tema;
+        }
+
+        /// <summary>
+        /// Creates a new TriangularMovingAverage indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose TRIMA we want</param>
+        /// <param name="period">The period over which to compute the TRIMA</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The TriangularMovingAverage indicator for the requested symbol over the specified period</returns>
+        public TriangularMovingAverage TRIMA(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "TRIMA" + period, resolution);
+            var trima = new TriangularMovingAverage(name, period);
+            RegisterIndicator(symbol, trima, resolution, selector);
+            return trima;
+        }
+
+        /// <summary>
+        /// Creates a new RateOfChangeRatio indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose ROCR we want</param>
+        /// <param name="period">The period over which to compute the ROCR</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The RateOfChangeRatio indicator for the requested symbol over the specified period</returns>
+        public RateOfChangeRatio ROCR(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "ROCR" + period, resolution);
+            var rocr = new RateOfChangeRatio(name, period);
+            RegisterIndicator(symbol, rocr, resolution, selector);
+            return rocr;
+        }
+
+        /// <summary>
+        /// Creates a new MeanAbsoluteDeviation indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose MeanAbsoluteDeviation we want</param>
+        /// <param name="period">The period over which to compute the MeanAbsoluteDeviation</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The MeanAbsoluteDeviation indicator for the requested symbol over the specified period</returns>
+        public MeanAbsoluteDeviation MAD(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "MAD" + period, resolution);
+            var mad = new MeanAbsoluteDeviation(name, period);
+            RegisterIndicator(symbol, mad, resolution, selector);
+            return mad;
+        }
+
+        /// <summary>
+        /// Creates a new Momersion indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Momersion we want</param>
+        /// <param name="minPeriod">The minimum period over which to compute the Momersion</param>
+        /// <param name="fullPeriod">The full period over which to compute the Momersion</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The Momersion indicator for the requested symbol over the specified period</returns>
+        public MomersionIndicator MOMERSION(Symbol symbol, int minPeriod, int fullPeriod, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, string.Format("MOMERSION({0},{1})", minPeriod, fullPeriod), resolution);
+            var momersion = new MomersionIndicator(name, minPeriod, fullPeriod);
+            RegisterIndicator(symbol, momersion, resolution, selector);
+            return momersion;
+        }
+
+        /// <summary>
+        /// Creates a new Sum indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Sum we want</param>
+        /// <param name="period">The period over which to compute the Sum</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The Sum indicator for the requested symbol over the specified period</returns>
+        public Sum SUM(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "SUM" + period, resolution);
+            var sum = new Sum(name, period);
+            RegisterIndicator(symbol, sum, resolution, selector);
+            return sum;
+        }
+
+        /// <summary>
+        /// Creates a new T3MovingAverage indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose T3 we want</param>
+        /// <param name="period">The period over which to compute the T3</param>
+        /// <param name="volumeFactor">The volume factor to be used for the T3 (value must be in the [0,1] range, defaults to 0.7)</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The T3MovingAverage indicator for the requested symbol over the specified period</returns>
+        public T3MovingAverage T3(Symbol symbol, int period, decimal volumeFactor = 0.7m, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, string.Format("T3({0},{1})", period, volumeFactor), resolution);
+            var t3 = new T3MovingAverage(name, period, volumeFactor);
+            RegisterIndicator(symbol, t3, resolution, selector);
+            return t3;
+        }
+
+        /// <summary>
+        /// Creates a new NormalizedAverageTrueRange indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose NATR we want</param>
+        /// <param name="period">The period over which to compute the NATR</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The NormalizedAverageTrueRange indicator for the requested symbol over the specified period</returns>
+        public NormalizedAverageTrueRange NATR(Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "NATR" + period, resolution);
+            var natr = new NormalizedAverageTrueRange(name, period);
+            RegisterIndicator(symbol, natr, resolution, selector);
+            return natr;
+        }
+
+
+        /// <summary>
+        /// Creates a new Heikin-Ashi indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Heikin-Ashi we want</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns>The Heikin-Ashi indicator for the requested symbol over the specified period</returns>
+        public HeikinAshi HeikinAshi(Symbol symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "HA", resolution);
+            var ha = new HeikinAshi(name);
+            RegisterIndicator(symbol, ha, resolution, selector);
+            return ha;
         }
 
         /// <summary>
@@ -513,7 +870,20 @@ namespace QuantConnect.Algorithm
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
-        public void RegisterIndicator(string symbol, IndicatorBase<IndicatorDataPoint> indicator, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        public void RegisterIndicator(Symbol symbol, IndicatorBase<IndicatorDataPoint> indicator, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, resolution), selector ?? (x => x.Value));
+        }
+
+        /// <summary>
+        /// Creates and registers a new consolidator to receive automatic updates at the specified resolution as well as configures
+        /// the indicator to receive updates from the consolidator.
+        /// </summary>
+        /// <param name="symbol">The symbol to register against</param>
+        /// <param name="indicator">The indicator to receive data from the consolidator</param>
+        /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        public void RegisterIndicator(Symbol symbol, IndicatorBase<IndicatorDataPoint> indicator, TimeSpan? resolution = null, Func<BaseData, decimal> selector = null)
         {
             RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, resolution), selector ?? (x => x.Value));
         }
@@ -526,7 +896,7 @@ namespace QuantConnect.Algorithm
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="consolidator">The consolidator to receive raw subscription data</param>
         /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
-        public void RegisterIndicator(string symbol, IndicatorBase<IndicatorDataPoint> indicator, IDataConsolidator consolidator, Func<BaseData, decimal> selector = null)
+        public void RegisterIndicator(Symbol symbol, IndicatorBase<IndicatorDataPoint> indicator, IDataConsolidator consolidator, Func<BaseData, decimal> selector = null)
         {
             // default our selector to the Value property on BaseData
             selector = selector ?? (x => x.Value);
@@ -549,7 +919,7 @@ namespace QuantConnect.Algorithm
         /// <param name="symbol">The symbol to register against</param>
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
-        public void RegisterIndicator<T>(string symbol, IndicatorBase<T> indicator, Resolution? resolution = null)
+        public void RegisterIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, Resolution? resolution = null)
             where T : BaseData
         {
             RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, resolution));
@@ -563,7 +933,21 @@ namespace QuantConnect.Algorithm
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
         /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
-        public void RegisterIndicator<T>(string symbol, IndicatorBase<T> indicator, Resolution? resolution, Func<BaseData, T> selector)
+        public void RegisterIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, Resolution? resolution, Func<BaseData, T> selector)
+            where T : BaseData
+        {
+            RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, resolution), selector);
+        }
+
+        /// <summary>
+        /// Registers the consolidator to receive automatic updates as well as configures the indicator to receive updates
+        /// from the consolidator.
+        /// </summary>
+        /// <param name="symbol">The symbol to register against</param>
+        /// <param name="indicator">The indicator to receive data from the consolidator</param>
+        /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
+        /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
+        public void RegisterIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, TimeSpan? resolution, Func<BaseData, T> selector = null)
             where T : BaseData
         {
             RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, resolution), selector);
@@ -577,7 +961,7 @@ namespace QuantConnect.Algorithm
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="consolidator">The consolidator to receive raw subscription data</param>
         /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
-        public void RegisterIndicator<T>(string symbol, IndicatorBase<T> indicator, IDataConsolidator consolidator, Func<BaseData, T> selector = null) 
+        public void RegisterIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, IDataConsolidator consolidator, Func<BaseData, T> selector = null) 
             where T : BaseData
         {
             // assign default using cast
@@ -610,7 +994,7 @@ namespace QuantConnect.Algorithm
         /// <param name="symbol">The symbo whose data is to be consolidated</param>
         /// <param name="resolution">The resolution for the consolidator, if null, uses the resolution from subscription</param>
         /// <returns>The new default consolidator</returns>
-        protected IDataConsolidator ResolveConsolidator(string symbol, Resolution? resolution)
+        public IDataConsolidator ResolveConsolidator(Symbol symbol, Resolution? resolution)
         {
             var subscription = GetSubscription(symbol);
 
@@ -643,7 +1027,7 @@ namespace QuantConnect.Algorithm
         /// <param name="symbol">The symbo whose data is to be consolidated</param>
         /// <param name="timeSpan">The requested time span for the consolidator, if null, uses the resolution from subscription</param>
         /// <returns>The new default consolidator</returns>
-        protected IDataConsolidator ResolveConsolidator(string symbol, TimeSpan? timeSpan)
+        public IDataConsolidator ResolveConsolidator(Symbol symbol, TimeSpan? timeSpan)
         {
             var subscription = GetSubscription(symbol);
 
@@ -679,11 +1063,10 @@ namespace QuantConnect.Algorithm
                 return new TickConsolidator(timeSpan.Value);
             }
 
-            // if our type can be used as a DynamicData then we'll use the DynamicDataConsolidator, inspect
-            // the subscription to figure out the isTradeBar and hasVolume flags
+            // if our type can be used as a DynamicData then we'll use the DynamicDataConsolidator
             if (typeof(DynamicData).IsAssignableFrom(subscription.Type))
             {
-                return new DynamicDataConsolidator(timeSpan.Value, subscription.IsTradeBar, subscription.HasVolume);
+                return new DynamicDataConsolidator(timeSpan.Value);
             }
 
             // no matter what we can always consolidate based on the time-value pair of BaseData
@@ -696,19 +1079,18 @@ namespace QuantConnect.Algorithm
         /// <exception cref="InvalidOperationException">Thrown if no configuration is found for the requested symbol</exception>
         /// <param name="symbol">The symbol to retrieve configuration for</param>
         /// <returns>The SubscriptionDataConfig for the specified symbol</returns>
-        protected SubscriptionDataConfig GetSubscription(string symbol)
+        protected SubscriptionDataConfig GetSubscription(Symbol symbol)
         {
-            symbol = symbol.ToUpper();
             SubscriptionDataConfig subscription;
             try
             {
                 // find our subscription to this symbol
-                subscription = SubscriptionManager.Subscriptions.First(x => x.Symbol.ToUpper() == symbol);
+                subscription = SubscriptionManager.Subscriptions.First(x => x.Symbol == symbol);
             }
             catch (InvalidOperationException)
             {
                 // this will happen if we did not find the subscription, let's give the user a decent error message
-                throw new Exception("Please register to receive data for symbol '" + symbol + "' using the AddSecurity() function.");
+                throw new Exception("Please register to receive data for symbol '" + symbol.ToString() + "' using the AddSecurity() function.");
             }
             return subscription;
         }
@@ -720,7 +1102,7 @@ namespace QuantConnect.Algorithm
         /// <param name="type">The indicator type, for example, 'SMA5'</param>
         /// <param name="resolution">The resolution requested</param>
         /// <returns>A unique for the given parameters</returns>
-        protected string CreateIndicatorName(string symbol, string type, Resolution? resolution)
+        public string CreateIndicatorName(Symbol symbol, string type, Resolution? resolution)
         {
             if (!resolution.HasValue)
             {
@@ -751,7 +1133,7 @@ namespace QuantConnect.Algorithm
                     throw new ArgumentOutOfRangeException("resolution");
             }
 
-            return string.Format("{0}({1}{2})", type, symbol.ToUpper(), res);
+            return string.Format("{0}({1}{2})", type, symbol.ToString(), res);
         }
 
     } // End Partial Algorithm Template - Indicators.

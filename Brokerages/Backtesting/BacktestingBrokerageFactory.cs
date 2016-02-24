@@ -46,6 +46,14 @@ namespace QuantConnect.Brokerages.Backtesting
         }
 
         /// <summary>
+        /// Gets a new instance of the <see cref="InteractiveBrokersBrokerageModel"/>
+        /// </summary>
+        public IBrokerageModel BrokerageModel
+        {
+            get { return new InteractiveBrokersBrokerageModel(); }
+        }
+
+        /// <summary>
         /// Creates a new IBrokerage instance
         /// </summary>
         /// <param name="job">The job packet to create the brokerage for</param>

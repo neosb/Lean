@@ -138,7 +138,26 @@ namespace QuantConnect.Orders
         /// <summary>
         /// Request was canceled by user
         /// </summary>
-        RequestCanceled = -23
+        RequestCanceled = -23,
 
+        /// <summary>
+        /// All orders are invalidated while algorithm is warming up
+        /// </summary>
+        AlgorithmWarmingUp = -24,
+
+        /// <summary>
+        /// Internal logic invalidated update order
+        /// </summary>
+        BrokerageModelRefusedToUpdateOrder = -25,
+
+        /// <summary>
+        /// Need quote currency in cashbook to trade
+        /// </summary>
+        QuoteCurrencyRequired = -26,
+
+        /// <summary>
+        /// Need conversion rate to account currency
+        /// </summary>
+        ConversionRateZero = -27,
     }
 }

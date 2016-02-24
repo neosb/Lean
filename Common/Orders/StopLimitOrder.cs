@@ -14,6 +14,7 @@
 */
 
 using System;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Orders
 {
@@ -25,31 +26,30 @@ namespace QuantConnect.Orders
         /// <summary>
         /// Stop price for this stop market order.
         /// </summary>
-        public decimal StopPrice;
+        public decimal StopPrice { get; internal set; }
 
         /// <summary>
         /// Signal showing the "StopLimitOrder" has been converted into a Limit Order
         /// </summary>
-        public bool StopTriggered = false;
+        public bool StopTriggered { get; internal set; }
 
         /// <summary>
         /// Limit price for the stop limit order
         /// </summary>
-        public decimal LimitPrice;
+        public decimal LimitPrice { get; internal set; }
 
         /// <summary>
-        /// Maximum value of the order at is the stop limit price
+        /// StopLimit Order Type
         /// </summary>
-        public override decimal Value
+        public override OrderType Type
         {
-            get { return Quantity*LimitPrice; }
+            get { return OrderType.StopLimit; }
         }
 
         /// <summary>
         /// Default constructor for JSON Deserialization:
         /// </summary>
         public StopLimitOrder()
-            : base(OrderType.StopLimit)
         {
         }
 
@@ -57,14 +57,13 @@ namespace QuantConnect.Orders
         /// New Stop Market Order constructor - 
         /// </summary>
         /// <param name="symbol">Symbol asset we're seeking to trade</param>
-        /// <param name="type">Type of the security order</param>
         /// <param name="quantity">Quantity of the asset we're seeking to trade</param>
         /// <param name="limitPrice">Maximum price to fill the order</param>
         /// <param name="time">Time the order was placed</param>
         /// <param name="stopPrice">Price the order should be filled at if a limit order</param>
         /// <param name="tag">User defined data tag for this order</param>
-        public StopLimitOrder(string symbol, int quantity, decimal stopPrice, decimal limitPrice, DateTime time, string tag = "", SecurityType type = SecurityType.Base)
-            : base(symbol, quantity, OrderType.StopLimit, time, tag, type)
+        public StopLimitOrder(Symbol symbol, int quantity, decimal stopPrice, decimal limitPrice, DateTime time, string tag = "")
+            : base(symbol, quantity, time, tag)
         {
             StopPrice = stopPrice;
             LimitPrice = limitPrice;
@@ -77,13 +76,24 @@ namespace QuantConnect.Orders
         }
 
         /// <summary>
-        /// Gets the value of this order at the given market price.
+        /// Gets the order value in units of the security's quote currency
         /// </summary>
-        /// <param name="currentMarketPrice">The current market price of the security</param>
-        /// <returns>The value of this order given the current market price</returns>
-        public override decimal GetValue(decimal currentMarketPrice)
+        /// <param name="security">The security matching this order's symbol</param>
+        protected override decimal GetValueImpl(Security security)
         {
-            return Quantity*LimitPrice;
+            // selling, so higher price will be used
+            if (Quantity < 0)
+            {
+                return Quantity*Math.Max(LimitPrice, security.Price);
+            }
+
+            // buying, so lower price will be used
+            if (Quantity > 0)
+            {
+                return Quantity*Math.Min(LimitPrice, security.Price);
+            }
+
+            return 0m;
         }
 
         /// <summary>
@@ -112,7 +122,18 @@ namespace QuantConnect.Orders
         /// <filterpriority>2</filterpriority>
         public override string ToString()
         {
-            return string.Format("{0} order for {1} unit{2} of {3} at stop {4} limit {5}", Type, Quantity, Quantity == 1 ? "" : "s", Symbol, StopPrice.SmartRounding(), LimitPrice.SmartRounding());
+            return string.Format("{0} at stop {1} limit {2}", base.ToString(), StopPrice.SmartRounding(), LimitPrice.SmartRounding());
+        }
+
+        /// <summary>
+        /// Creates a deep-copy clone of this order
+        /// </summary>
+        /// <returns>A copy of this order</returns>
+        public override Order Clone()
+        {
+            var order = new StopLimitOrder {StopPrice = StopPrice, LimitPrice = LimitPrice};
+            CopyTo(order);
+            return order;
         }
     }
 }

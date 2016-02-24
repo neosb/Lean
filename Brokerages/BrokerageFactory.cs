@@ -51,6 +51,12 @@ namespace QuantConnect.Brokerages
         public abstract Dictionary<string, string> BrokerageData { get; }
 
         /// <summary>
+        /// Gets a brokerage model that can be used to model this brokerage's unique
+        /// behaviors
+        /// </summary>
+        public abstract IBrokerageModel BrokerageModel { get; }
+
+        /// <summary>
         /// Creates a new IBrokerage instance
         /// </summary>
         /// <param name="job">The job packet to create the brokerage for</param>
@@ -76,7 +82,7 @@ namespace QuantConnect.Brokerages
             string value;
             if (!brokerageData.TryGetValue(key, out value))
             {
-                errors.Add("InterativeBrokersBrokerageFactory.CreateBrokerage(): Missing key: " + key);
+                errors.Add("BrokerageFactory.CreateBrokerage(): Missing key: " + key);
                 return default(T);
             }
 
@@ -86,7 +92,7 @@ namespace QuantConnect.Brokerages
             }
             catch (Exception err)
             {
-                errors.Add(string.Format("InterativeBrokersBrokerageFactory.CreateBrokerage(): Error converting key '{0}' with value '{1}'. {2}", key, value, err.Message));
+                errors.Add(string.Format("BrokerageFactory.CreateBrokerage(): Error converting key '{0}' with value '{1}'. {2}", key, value, err.Message));
                 return default(T);
             }
         }

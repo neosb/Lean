@@ -13,21 +13,34 @@
  * limitations under the License.
 */
 
-using System;
+using System.Collections.Generic;
+using QuantConnect.Data.Market;
 using QuantConnect.Orders;
+using QuantConnect.Orders.Fees;
+using QuantConnect.Orders.Fills;
+using QuantConnect.Orders.Slippage;
 using QuantConnect.Securities;
 using QuantConnect.Securities.Equity;
-using QuantConnect.Securities.Interfaces;
 
 namespace QuantConnect.Brokerages
 {
     /// <summary>
     /// Provides tradier specific properties
     /// </summary>
-    public class TradierBrokerageModel : IBrokerageModel
+    public class TradierBrokerageModel : DefaultBrokerageModel
     {
         private static readonly EquityExchange EquityExchange = 
-            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Equity));
+            new EquityExchange(MarketHoursDatabase.FromDataFolder().GetExchangeHours(Market.USA, null, SecurityType.Equity, TimeZones.NewYork));
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultBrokerageModel"/> class
+        /// </summary>
+        /// <param name="accountType">The type of account to be modelled, defaults to 
+        /// <see cref="QuantConnect.AccountType.Margin"/></param>
+        public TradierBrokerageModel(AccountType accountType = AccountType.Margin)
+            : base(accountType)
+        {
+        }
 
         /// <summary>
         /// Returns true if the brokerage could accept this order. This takes into account
@@ -36,11 +49,11 @@ namespace QuantConnect.Brokerages
         /// <remarks>
         /// For example, a brokerage may have no connectivity at certain times, or an order rate/size limit
         /// </remarks>
-        /// <param name="security"></param>
+        /// <param name="security">The security of the order</param>
         /// <param name="order">The order to be processed</param>
         /// <param name="message">If this function returns false, a brokerage message detailing why the order may not be submitted</param>
         /// <returns>True if the brokerage could process the order, false otherwise</returns>
-        public bool CanSubmitOrder(Security security, Order order, out BrokerageMessageEvent message)
+        public override bool CanSubmitOrder(Security security, Order order, out BrokerageMessageEvent message)
         {
             message = null;
 
@@ -66,6 +79,31 @@ namespace QuantConnect.Brokerages
         }
 
         /// <summary>
+        /// Returns true if the brokerage would allow updating the order as specified by the request
+        /// </summary>
+        /// <param name="security">The security of the order</param>
+        /// <param name="order">The order to be updated</param>
+        /// <param name="request">The requested update to be made to the order</param>
+        /// <param name="message">If this function returns false, a brokerage message detailing why the order may not be updated</param>
+        /// <returns>True if the brokerage would allow updating the order, false otherwise</returns>
+        public override bool CanUpdateOrder(Security security, Order order, UpdateOrderRequest request, out BrokerageMessageEvent message)
+        {
+            message = null;
+
+            // Tradier doesn't allow updating order quantities
+            if (request.Quantity != null && request.Quantity != order.Quantity)
+            {
+                message = new BrokerageMessageEvent(BrokerageMessageType.Warning, "UpdateRejected",
+                    "Traider does not support updating order quantities."
+                    );
+
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Returns true if the brokerage would be able to execute this order at this time assuming
         /// market prices are sufficient for the fill to take place. This is used to emulate the 
         /// brokerage fills in backtesting and paper trading. For example some brokerages may not perform
@@ -75,13 +113,18 @@ namespace QuantConnect.Brokerages
         /// <param name="security">The security being ordered</param>
         /// <param name="order">The order to test for execution</param>
         /// <returns>True if the brokerage would be able to perform the execution, false otherwise</returns>
-        public bool CanExecuteOrder(Security security, Order order)
+        public override bool CanExecuteOrder(Security security, Order order)
         {
             EquityExchange.SetLocalDateTimeFrontier(security.Exchange.LocalTime);
 
+            var cache = security.GetLastData();
+            if (cache == null)
+            {
+                return false;
+            }
+
             // tradier doesn't support after hours trading
-            var timeOfDay = security.LocalTime.TimeOfDay;
-            if (timeOfDay < EquityExchange.MarketOpen || timeOfDay > EquityExchange.MarketClose)
+            if (!EquityExchange.IsOpenDuringBar(cache.Time, cache.EndTime, false))
             {
                 return false;
             }
@@ -89,21 +132,52 @@ namespace QuantConnect.Brokerages
         }
 
         /// <summary>
-        /// Gets a new transaction model the represents this brokerage's fee structure and fill behavior
+        /// Applies the split to the specified order ticket
         /// </summary>
-        /// <param name="security">The security to get a transaction model for</param>
-        /// <returns>The transaction model for this brokerage</returns>
-        public ISecurityTransactionModel GetTransactionModel(Security security)
+        /// <param name="tickets">The open tickets matching the split event</param>
+        /// <param name="split">The split event data</param>
+        public override void ApplySplit(List<OrderTicket> tickets, Split split)
         {
-            if (security.Type == SecurityType.Equity)
+            // tradier cancels reverse splits
+            var splitFactor = split.SplitFactor;
+            if (splitFactor > 1.0m)
             {
-                // tradier does 1 dollar trades for QC!!
-                return new ConstantFeeTransactionModel(1m);
+                tickets.ForEach(ticket => ticket.Cancel("Tradier Brokerage cancels open orders on reverse split symbols"));
             }
+            else
+            {
+                base.ApplySplit(tickets, split);
+            }
+        }
 
-            // since tradier only processes equities (and options but it's not supported), we'll just make
-            // everything return a zero fee model
-            return new ConstantFeeTransactionModel(0m);
+        /// <summary>
+        /// Gets a new fill model that represents this brokerage's fill behavior
+        /// </summary>
+        /// <param name="security">The security to get fill model for</param>
+        /// <returns>The new fill model for this brokerage</returns>
+        public override IFillModel GetFillModel(Security security)
+        {
+            return new ImmediateFillModel();
+        }
+
+        /// <summary>
+        /// Gets a new fee model that represents this brokerage's fee structure
+        /// </summary>
+        /// <param name="security">The security to get a fee model for</param>
+        /// <returns>The new fee model for this brokerage</returns>
+        public override IFeeModel GetFeeModel(Security security)
+        {
+            return new ConstantFeeModel(1m);
+        }
+
+        /// <summary>
+        /// Gets a new slippage model that represents this brokerage's fill slippage behavior
+        /// </summary>
+        /// <param name="security">The security to get a slippage model for</param>
+        /// <returns>The new slippage model for this brokerage</returns>
+        public override ISlippageModel GetSlippageModel(Security security)
+        {
+            return new SpreadSlippageModel();
         }
 
     }

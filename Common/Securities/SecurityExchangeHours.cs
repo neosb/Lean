@@ -31,10 +31,6 @@ namespace QuantConnect.Securities
     /// </remarks>
     public class SecurityExchangeHours
     {
-        private static readonly SecurityExchangeHours _alwaysOpen = new SecurityExchangeHours(DateTimeZone.Utc, Enumerable.Empty<DateTime>(),
-            Enum.GetValues(typeof (DayOfWeek)).OfType<DayOfWeek>().Select(LocalMarketHours.OpenAllDay).ToDictionary(x => x.DayOfWeek)
-            );
-
         private readonly DateTimeZone _timeZone;
         private readonly HashSet<long> _holidays;
 
@@ -75,9 +71,13 @@ namespace QuantConnect.Securities
         /// <summary>
         /// Gets a <see cref="SecurityExchangeHours"/> instance that is always open
         /// </summary>
-        public static SecurityExchangeHours AlwaysOpen
+        public static SecurityExchangeHours AlwaysOpen(DateTimeZone timeZone)
         {
-            get { return _alwaysOpen; }
+            var dayOfWeeks = Enum.GetValues(typeof (DayOfWeek)).OfType<DayOfWeek>();
+            return new SecurityExchangeHours(timeZone,
+                Enumerable.Empty<DateTime>(),
+                dayOfWeeks.Select(LocalMarketHours.OpenAllDay).ToDictionary(x => x.DayOfWeek)
+                );
         }
 
         /// <summary>
@@ -191,23 +191,27 @@ namespace QuantConnect.Securities
         /// <returns>The next market opening date time following the specified local date time</returns>
         public DateTime GetNextMarketOpen(DateTime localDateTime, bool extendedMarket)
         {
-            var date = localDateTime.Date;
+            var time = localDateTime;
             var oneWeekLater = localDateTime.Date.AddDays(15);
             do
             {
-                var marketHours = GetMarketHours(date.DayOfWeek);
-                if (!marketHours.IsClosedAllDay && !_holidays.Contains(date.Ticks))
+                var marketHours = GetMarketHours(time.DayOfWeek);
+                if (!marketHours.IsClosedAllDay && !_holidays.Contains(time.Ticks))
                 {
-                    var marketOpen = date + marketHours.GetMarketOpen(extendedMarket);
-                    if (localDateTime < marketOpen)
+                    var marketOpenTimeOfDay = marketHours.GetMarketOpen(time.TimeOfDay, extendedMarket);
+                    if (marketOpenTimeOfDay.HasValue)
                     {
-                        return marketOpen;
+                        var marketOpen = time.Date + marketOpenTimeOfDay.Value;
+                        if (localDateTime < marketOpen)
+                        {
+                            return marketOpen;
+                        }
                     }
                 }
 
-                date = date + Time.OneDay;
+                time = time.Date + Time.OneDay;
             }
-            while (date < oneWeekLater);
+            while (time < oneWeekLater);
 
             throw new Exception("Unable to locate next market open within two weeks.");
         }
@@ -220,23 +224,27 @@ namespace QuantConnect.Securities
         /// <returns>The next market closing date time following the specified local date time</returns>
         public DateTime GetNextMarketClose(DateTime localDateTime, bool extendedMarket)
         {
-            var date = localDateTime.Date;
+            var time = localDateTime;
             var oneWeekLater = localDateTime.Date.AddDays(15);
             do
             {
-                var marketHours = GetMarketHours(date.DayOfWeek);
-                if (!marketHours.IsClosedAllDay && !_holidays.Contains(date.Ticks))
+                var marketHours = GetMarketHours(time.DayOfWeek);
+                if (!marketHours.IsClosedAllDay && !_holidays.Contains(time.Ticks))
                 {
-                    var marketClose = date + marketHours.GetMarketClose(extendedMarket);
-                    if (localDateTime < marketClose)
+                    var marketCloseTimeOfDay = marketHours.GetMarketClose(time.TimeOfDay, extendedMarket);
+                    if (marketCloseTimeOfDay.HasValue)
                     {
-                        return marketClose;
+                        var marketClose = time.Date + marketCloseTimeOfDay.Value;
+                        if (localDateTime < marketClose)
+                        {
+                            return marketClose;
+                        }
                     }
                 }
 
-                date = date + Time.OneDay;
+                time = time.Date + Time.OneDay;
             }
-            while (date < oneWeekLater);
+            while (time < oneWeekLater);
 
             throw new Exception("Unable to locate next market close within two weeks.");
         }

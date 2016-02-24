@@ -17,6 +17,10 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using QuantConnect.Logging;
+using System.Drawing;
+using Newtonsoft.Json.Converters;
+using System.Runtime.Serialization;
+using QuantConnect.Util;
 
 namespace QuantConnect 
 {
@@ -30,10 +34,11 @@ namespace QuantConnect
         public string Name = "";
 
         /// Type of the Chart, Overlayed or Stacked.
+        [Obsolete("ChartType is now obsolete. Please use Series indexes instead by setting index in the series constructor.")]
         public ChartType ChartType = ChartType.Overlay;
 
         /// List of Series Objects for this Chart:
-        public Dictionary<string, Series> Series = new Dictionary<string,Series>();
+        public Dictionary<string, Series> Series = new Dictionary<string, Series>();
 
         /// <summary>
         /// Default constructor for chart:
@@ -45,11 +50,22 @@ namespace QuantConnect
         /// </summary>
         /// <param name="name">Name of the Chart</param>
         /// <param name="type"> Type of the chart</param>
+        [Obsolete("ChartType is now obsolete and ignored in charting. Please use Series indexes instead by setting index in the series constructor.")]
         public Chart(string name, ChartType type = ChartType.Overlay) 
         {
             Name = name;
             Series = new Dictionary<string, Series>();
             ChartType = type;
+        }
+
+        /// <summary>
+        /// Constructor for a chart
+        /// </summary>
+        /// <param name="name">String name of the chart</param>
+        public Chart(string name)
+        {
+            Name = name;
+            Series = new Dictionary<string, Series>();
         }
 
         /// <summary>
@@ -75,7 +91,7 @@ namespace QuantConnect
         /// <returns></returns>
         public Chart GetUpdates() 
         {
-            var copy = new Chart(Name, ChartType);
+            var copy = new Chart(Name);
             try
             {   
                 foreach (var series in Series.Values)
@@ -84,7 +100,7 @@ namespace QuantConnect
                 }
             }
             catch (Exception err) {
-                Log.Error("Chart.GetUpdates(): " + err.Message);
+                Log.Error(err);
             }
             return copy;
         }
@@ -108,6 +124,11 @@ namespace QuantConnect
         public string Unit = "$";
 
         /// <summary>
+        /// Index/position of the series on the chart.
+        /// </summary>
+        public int Index;
+
+        /// <summary>
         ///  Values for the series plot:
         /// These values are assumed to be in ascending time order (first points earliest, last points latest)
         /// </summary>
@@ -118,8 +139,19 @@ namespace QuantConnect
         /// </summary>
         public SeriesType SeriesType = SeriesType.Line;
 
+        /// <summary>
+        /// Color the series 
+        /// </summary>
+        [JsonConverter(typeof(ColorJsonConverter))]
+        public Color Color = Color.Empty;
+
+        /// <summary>
+        /// Shape or symbol for the marker in a scatter plot
+        /// </summary>
+        public ScatterMarkerSymbol ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+
         /// Get the index of the last fetch update request to only retrieve the "delta" of the previous request.
-        private int _updatePosition = 0;
+        private int _updatePosition;
 
         /// <summary>
         /// Default constructor for chart series
@@ -130,14 +162,116 @@ namespace QuantConnect
         /// Constructor method for Chart Series
         /// </summary>
         /// <param name="name">Name of the chart series</param>
+        public Series(string name)
+        {
+            Name = name;
+            SeriesType = SeriesType.Line;
+            Unit = "$";
+            Index = 0;
+            Color = Color.Empty;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Foundational constructor on the series class
+        /// </summary>
+        /// <param name="name">Name of the series</param>
+        /// <param name="type">Type of the series</param>
+        public Series(string name, SeriesType type)
+        {
+            Name = name;
+            SeriesType = type;
+            Index = 0;
+            Unit = "$";
+            Color = Color.Empty;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Foundational constructor on the series class
+        /// </summary>
+        /// <param name="name">Name of the series</param>
+        /// <param name="type">Type of the series</param>
+        /// <param name="index">Index position on the chart of the series</param>
+        public Series(string name, SeriesType type, int index)
+        {
+            Name = name;
+            SeriesType = type;
+            Index = index;
+            Unit = "$";
+            Color = Color.Empty;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Foundational constructor on the series class
+        /// </summary>
+        /// <param name="name">Name of the series</param>
+        /// <param name="type">Type of the series</param>
+        /// <param name="index">Index position on the chart of the series</param>
+        /// <param name="unit">Unit for the series axis</param>
+        public Series(string name, SeriesType type, int index, string unit)
+        {
+            Name = name;
+            SeriesType = type;
+            Index = index;
+            Unit = unit;
+            Color = Color.Empty;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Constructor method for Chart Series
+        /// </summary>
+        /// <param name="name">Name of the chart series</param>
         /// <param name="type">Type of the chart series</param>
         /// <param name="unit">Unit of the serier</param>
-        public Series(string name, SeriesType type = SeriesType.Line, string unit = "$") 
+        public Series(string name, SeriesType type = SeriesType.Line, string unit = "$")
         {
             Name = name;
             Values = new List<ChartPoint>();
             SeriesType = type;
             Unit = unit;
+            Index = 0;
+            Color = Color.Empty;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Constructor method for Chart Series
+        /// </summary>
+        /// <param name="name">Name of the chart series</param>
+        /// <param name="type">Type of the chart series</param>
+        /// <param name="unit">Unit of the serier</param>
+        /// <param name="color">Color of the series</param>
+        public Series(string name, SeriesType type, string unit, Color color)
+        {
+            Name = name;
+            Values = new List<ChartPoint>();
+            SeriesType = type;
+            Unit = unit;
+            Index = 0;
+            Color = color;
+            ScatterMarkerSymbol = ScatterMarkerSymbol.Circle;
+        }
+
+        /// <summary>
+        /// Constructor method for Chart Series
+        /// </summary>
+        /// <param name="name">Name of the chart series</param>
+        /// <param name="type">Type of the chart series</param>
+        /// <param name="unit">Unit of the serier</param>
+        /// <param name="color">Color of the series</param>
+        /// <param name="symbol">Symbol for the marker in a scatter plot series</param>
+        public Series(string name, SeriesType type, string unit, Color color, ScatterMarkerSymbol symbol = ScatterMarkerSymbol.Circle)
+        {
+            Name = name;
+            Values = new List<ChartPoint>();
+            SeriesType = type;
+            Unit = unit;
+            Index = 0;
+            Color = color;
+            ScatterMarkerSymbol = symbol;
         }
 
         /// <summary>
@@ -172,7 +306,12 @@ namespace QuantConnect
         /// <returns>List of the updates from the series</returns>
         public Series GetUpdates() 
         {
-            var copy = new Series(Name, SeriesType, Unit);
+            var copy = new Series(Name, SeriesType, Index, Unit)
+            {
+                Color = Color,
+                ScatterMarkerSymbol = ScatterMarkerSymbol
+            };
+
             try
             {
                 //Add the updates since the last 
@@ -184,7 +323,7 @@ namespace QuantConnect
                 _updatePosition = Values.Count;
             }
             catch (Exception err) {
-                Log.Error("Series.GetUpdates(): " + err.Message);
+                Log.Error(err);
             }
             return copy;
         }
@@ -261,5 +400,28 @@ namespace QuantConnect
         Overlay,
         /// Stacked series on top of each other.
         Stacked
+    }
+
+    /// <summary>
+    /// Shape or symbol for the marker in a scatter plot
+    /// </summary>
+    [JsonConverter(typeof(StringEnumConverter))]
+    public enum ScatterMarkerSymbol
+    {
+        /// Circle symbol
+        [EnumMember(Value = "circle")]
+        Circle,
+        /// Square symbol
+        [EnumMember(Value = "square")]
+        Square,
+        /// Diamond symbol
+        [EnumMember(Value = "diamond")]
+        Diamond,
+        /// Triangle symbol
+        [EnumMember(Value = "triangle")]
+        Triangle,
+        /// Triangle-down symbol
+        [EnumMember(Value = "triangle-down")]
+        TriangleDown,
     }
 }

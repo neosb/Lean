@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 using System;
 
 namespace QuantConnect.Data.Market
@@ -58,7 +59,17 @@ namespace QuantConnect.Data.Market
         /// <summary>
         /// Gets the end time of this renko bar or the most recent update time if it <see cref="IsClosed"/>
         /// </summary>
-        public DateTime End { get; private set; }
+        public override DateTime EndTime { get; set; }
+
+        /// <summary>
+        /// Gets the end time of this renko bar or the most recent update time if it <see cref="IsClosed"/>
+        /// </summary>
+        [Obsolete("RenkoBar.End is obsolete. Please use RenkoBar.EndTime property instead.")]
+        public DateTime End
+        {
+            get { return EndTime; }
+            set { EndTime = value; }
+        }
 
         /// <summary>
         /// Gets the time this bar started
@@ -89,11 +100,11 @@ namespace QuantConnect.Data.Market
         /// <param name="brickSize">The size of each renko brick</param>
         /// <param name="open">The opening price for the new bar</param>
         /// <param name="volume">Any initial volume associated with the data</param>
-        public RenkoBar(string symbol, DateTime time, decimal brickSize, decimal open, long volume)
+        public RenkoBar(Symbol symbol, DateTime time, decimal brickSize, decimal open, long volume)
         {
             Symbol = symbol;
             Start = time;
-            End = time;
+            EndTime = time;
             BrickSize = brickSize;
             Open = open;
             Close = open;
@@ -114,7 +125,7 @@ namespace QuantConnect.Data.Market
             // can't update a closed renko bar
             if (IsClosed) return true;
             if (Start == DateTime.MinValue) Start = time;
-            End = time;
+            EndTime = time;
 
             // compute the min/max closes this renko bar can have
             decimal lowClose = Open - BrickSize;
@@ -160,6 +171,32 @@ namespace QuantConnect.Data.Market
         public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
         {
             throw new NotSupportedException("RenkoBar does not support the GetSource function. This function should never be called on this type.");
+        }
+
+        /// <summary>
+        /// Return a new instance clone of this object, used in fill forward
+        /// </summary>
+        /// <remarks>
+        /// This base implementation uses reflection to copy all public fields and properties
+        /// </remarks>
+        /// <returns>A clone of the current object</returns>
+        public override BaseData Clone()
+        {
+            return new RenkoBar
+            {
+                BrickSize = BrickSize,
+                Open = Open,
+                Volume = Volume,
+                Close = Close,
+                EndTime = EndTime,
+                High = High,
+                IsClosed = IsClosed,
+                Low = Low,
+                Time = Time,
+                Value = Value,
+                Symbol = Symbol,
+                DataType = DataType
+            };
         }
     }
 }

@@ -21,7 +21,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using ImpromptuInterface;
 using IronPython.Hosting;
-using Microsoft.Scripting.Hosting;
+using QuantConnect.Configuration;
 using QuantConnect.Interfaces;
 using QuantConnect.Logging;
 
@@ -38,6 +38,9 @@ namespace QuantConnect.AlgorithmFactory
 
         // Language of the loader class.
         private readonly Language _language;
+
+        // Location of the IronPython standard library
+        private readonly string _ironPythonLibrary = Config.Get("ironpython-location", "../ironpython/Lib");
 
         // Defines how we resolve a list of type names into a single type name to be instantiated
         private readonly Func<List<string>, string> _multipleTypeNameResolverFunction;
@@ -145,9 +148,12 @@ namespace QuantConnect.AlgorithmFactory
             {
                 //Create the python engine
                 var engine = Python.CreateEngine();
+                var paths = engine.GetSearchPaths();
+                paths.Add(_ironPythonLibrary);
+                engine.SetSearchPaths(paths);
 
                 //Load the dll - built with clr.Compiler()
-                Log.Trace("Loader.TryCreatePythonAlgorithm(): Loading python assembly...");
+                Log.Trace("Loader.TryCreatePythonAlgorithm(): Loading python assembly: " + assemblyPath);
                 var library = Assembly.LoadFile(Path.GetFullPath(assemblyPath));
                 engine.Runtime.LoadAssembly(library);
 
@@ -156,12 +162,14 @@ namespace QuantConnect.AlgorithmFactory
                 try
                 {
                     Log.Trace("Loader.TryCreatePythonAlgorithm(): Importing python module...");
-                    var scope = engine.Runtime.ImportModule("main");
+                    var algorithmName = Config.Get("algorithm-type-name");
+                    var scope = engine.Runtime.ImportModule(algorithmName);
                     items = (List<KeyValuePair<string, dynamic>>)scope.GetItems();
                 }
-                catch (Exception)
+                catch (Exception err)
                 {
-                    errorMessage = "Could not locate 'main' module. Please make sure you have a main.py file in your project";
+                    Log.Error(err);
+                    errorMessage = err.Message + " - could not locate 'main' module. Please make sure you have a main.py file in your project.";
                     return false;
                 }
 
@@ -199,7 +207,7 @@ namespace QuantConnect.AlgorithmFactory
             }
             catch (Exception err)
             {
-                Log.Error("Loader.TryCreatePythonAlgorithm(): " + err.Message);
+                Log.Error(err);
             }
 
             return success && (algorithmInstance != null);
@@ -295,25 +303,17 @@ namespace QuantConnect.AlgorithmFactory
             }
             catch (ReflectionTypeLoadException err)
             {
+                Log.Error(err);
                 Log.Error("Loader.TryCreateILAlgorithm(1): " + err.LoaderExceptions[0]);
                 if (err.InnerException != null) errorMessage = err.InnerException.Message;
             }
             catch (Exception err)
             {
-                Log.Error("Loader.TryCreateILAlgorithm(2): " + err.Message);
+                Log.Error(err);
                 if (err.InnerException != null) errorMessage = err.InnerException.Message;
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Shim method - Gets the types derived from the 'baseClassName' type
-        /// </summary>
-        [Obsolete("Use the other overload, it's this types job to produce IAlgorithm instances")]
-        public static List<string> GetExtendedTypeNames(Assembly assembly, string baseClassName)
-        {
-            return GetExtendedTypeNames(assembly);
         }
 
         /// <summary>
@@ -353,7 +353,7 @@ namespace QuantConnect.AlgorithmFactory
             }
             catch (Exception err)
             {
-                Log.Error("API.GetExtendedTypeNames(): " + err.Message + " Inner: " + err.InnerException);
+                Log.Error(err);
             }
 
             return types;
@@ -388,27 +388,6 @@ namespace QuantConnect.AlgorithmFactory
             }
 
             return complete && success && algorithmInstance != null;
-        }
-
-        /// <summary>
-        /// Create a safe application domain with a random name. 
-        /// </summary>
-        /// <remarks>Not used in lean engine. Running the library in an app domain is 10x slower.</remarks>
-        /// <param name="appDomainName">Set the name if required</param>
-        /// <returns>True on successful creation.</returns>
-        private AppDomain CreateAppDomain(string appDomainName = "") {
-
-            //Create new domain name if not supplied:
-            if (string.IsNullOrEmpty(appDomainName)) {
-                appDomainName = "qclibrary" + Guid.NewGuid().ToString().GetHashCode().ToString("x");
-            }
-
-            //Setup the new domain
-            var domainSetup = new AppDomainSetup();
-
-            //Create the domain: set to class variable; return reference.
-            appDomain = AppDomain.CreateDomain(appDomainName, null, domainSetup);
-            return appDomain;
         }
 
 

@@ -14,6 +14,7 @@
 */
 
 using System;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Orders
 {
@@ -28,18 +29,17 @@ namespace QuantConnect.Orders
         public decimal StopPrice;
 
         /// <summary>
-        /// Value of the order at stop price
+        /// StopMarket Order Type
         /// </summary>
-        public override decimal Value
+        public override OrderType Type
         {
-            get { return Quantity*StopPrice; }
+            get { return OrderType.StopMarket; }
         }
 
         /// <summary>
         /// Default constructor for JSON Deserialization:
         /// </summary>
         public StopMarketOrder()
-            : base(OrderType.StopMarket)
         {
         }
 
@@ -47,13 +47,12 @@ namespace QuantConnect.Orders
         /// New Stop Market Order constructor - 
         /// </summary>
         /// <param name="symbol">Symbol asset we're seeking to trade</param>
-        /// <param name="type">Type of the security order</param>
         /// <param name="quantity">Quantity of the asset we're seeking to trade</param>
         /// <param name="time">Time the order was placed</param>
         /// <param name="stopPrice">Price the order should be filled at if a limit order</param>
         /// <param name="tag">User defined data tag for this order</param>
-        public StopMarketOrder(string symbol, int quantity, decimal stopPrice, DateTime time, string tag = "", SecurityType type = SecurityType.Base)
-            : base(symbol, quantity, OrderType.StopMarket, time, tag, type)
+        public StopMarketOrder(Symbol symbol, int quantity, decimal stopPrice, DateTime time, string tag = "")
+            : base(symbol, quantity, time, tag)
         {
             StopPrice = stopPrice;
 
@@ -65,13 +64,24 @@ namespace QuantConnect.Orders
         }
 
         /// <summary>
-        /// Gets the value of this order at the given market price.
+        /// Gets the order value in units of the security's quote currency
         /// </summary>
-        /// <param name="currentMarketPrice">The current market price of the security</param>
-        /// <returns>The value of this order given the current market price</returns>
-        public override decimal GetValue(decimal currentMarketPrice)
+        /// <param name="security">The security matching this order's symbol</param>
+        protected override decimal GetValueImpl(Security security)
         {
-            return Quantity*StopPrice;
+            // selling, so higher price will be used
+            if (Quantity < 0)
+            {
+                return Quantity*Math.Max(StopPrice, security.Price);
+            }
+
+            // buying, so lower price will be used
+            if (Quantity > 0)
+            {
+                return Quantity*Math.Min(StopPrice, security.Price);
+            }
+
+            return 0m;
         }
 
         /// <summary>
@@ -96,7 +106,18 @@ namespace QuantConnect.Orders
         /// <filterpriority>2</filterpriority>
         public override string ToString()
         {
-            return string.Format("{0} order for {1} unit{2} of {3} at stop {4}", Type, Quantity, Quantity == 1 ? "" : "s", Symbol, StopPrice.SmartRounding());
+            return string.Format("{0} at stop {1}", base.ToString(), StopPrice.SmartRounding());
+        }
+
+        /// <summary>
+        /// Creates a deep-copy clone of this order
+        /// </summary>
+        /// <returns>A copy of this order</returns>
+        public override Order Clone()
+        {
+            var order = new StopMarketOrder {StopPrice = StopPrice};
+            CopyTo(order);
+            return order;
         }
     }
 }

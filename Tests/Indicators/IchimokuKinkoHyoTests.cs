@@ -13,9 +13,7 @@
  * limitations under the License.
 */
 
-using System;
 using NUnit.Framework;
-using QuantConnect.Data.Market;
 using QuantConnect.Indicators;
 
 namespace QuantConnect.Tests.Indicators
@@ -174,6 +172,14 @@ namespace QuantConnect.Tests.Indicators
                 "DelayedMinimumSenkouB",
                 (ind, expected) => Assert.AreEqual(expected, (double)((IchimokuKinkoHyo)ind).DelayedMinimumSenkouB.Current.Value)
                 );
+        }
+
+        [Test]
+        public void ResetsProperly()
+        {
+            var ichimoku = new IchimokuKinkoHyo("Ichimoku", 9, 26, 26, 52, 26, 26);
+
+            TestHelper.TestIndicatorReset(ichimoku, "spy_with_ichimoku.csv");
         }
     }
 }

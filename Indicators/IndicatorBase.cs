@@ -12,11 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 using System;
 using System.Diagnostics;
-using System.Threading;
 using QuantConnect.Data;
-using QuantConnect.Data.Consolidators;
 
 namespace QuantConnect.Indicators
 {
@@ -32,7 +31,7 @@ namespace QuantConnect.Indicators
     /// </summary>
     /// <typeparam name="T">The type of data input into this indicator</typeparam>
     [DebuggerDisplay("{ToDetailedString()}")]
-    public abstract class IndicatorBase<T> : IComparable<IndicatorBase<T>>, IComparable
+    public abstract partial class IndicatorBase<T> : IComparable<IndicatorBase<T>>, IComparable
         where T : BaseData
     {
         /// <summary>the most recent input that was given to this indicator</summary>
@@ -92,11 +91,15 @@ namespace QuantConnect.Indicators
                 // compute a new value and update our previous time
                 Samples++;
                 _previousInput = input;
-                var nextValue = ComputeNextValue(input);
-                Current = new IndicatorDataPoint(input.Time, nextValue);
 
-                // let others know we've produced a new data point
-                OnUpdated(Current);
+                var nextResult = ValidateAndComputeNextValue(input);
+                if (nextResult.Status == IndicatorStatus.Success)
+                {
+                    Current = new IndicatorDataPoint(input.Time, nextResult.Value);
+
+                    // let others know we've produced a new data point
+                    OnUpdated(Current);
+                }
             }
             return IsReady;
         }
@@ -107,17 +110,8 @@ namespace QuantConnect.Indicators
         public virtual void Reset()
         {
             Samples = 0;
+            _previousInput = null;
             Current = new IndicatorDataPoint(DateTime.MinValue, default(decimal));
-        }
-
-        /// <summary>
-        /// Returns the current value of this instance
-        /// </summary>
-        /// <param name="instance">The indicator instance</param>
-        /// <returns>The current value of the indicator</returns>
-        public static implicit operator decimal(IndicatorBase<T> instance)
-        {
-            return instance.Current;
         }
 
         /// <summary>
@@ -157,6 +151,30 @@ namespace QuantConnect.Indicators
         }
 
         /// <summary>
+        /// Determines whether the specified object is equal to the current object.
+        /// </summary>
+        /// <returns>
+        /// true if the specified object  is equal to the current object; otherwise, false.
+        /// </returns>
+        /// <param name="obj">The object to compare with the current object. </param>
+        public override bool Equals(object obj)
+        {
+            // this implementation acts as a liason to prevent inconsistency between the operators
+            // == and != against primitive types. the core impl for equals between two indicators
+            // is still reference equality, however, when comparing value types (floats/int, ect..)
+            // we'll use value type semantics on Current.Value
+            // because of this, we shouldn't need to override GetHashCode as well since we're still
+            // solely relying on reference semantics (think hashset/dictionary impls)
+
+            if (ReferenceEquals(obj, null)) return false;
+            if (obj.GetType().IsSubclassOf(typeof (IndicatorBase<>))) return ReferenceEquals(this, obj);
+
+            // the obj is not an indicator, so let's check for value types, try converting to decimal
+            var converted = Convert.ToDecimal(obj);
+            return Current.Value == converted;
+        }
+
+        /// <summary>
         /// ToString Overload for Indicator Base
         /// </summary>
         /// <returns>String representation of the indicator</returns>
@@ -180,6 +198,18 @@ namespace QuantConnect.Indicators
         /// <param name="input">The input given to the indicator</param>
         /// <returns>A new value for this indicator</returns>
         protected abstract decimal ComputeNextValue(T input);
+
+        /// <summary>
+        /// Computes the next value of this indicator from the given state
+        /// and returns an instance of the <see cref="IndicatorResult"/> class
+        /// </summary>
+        /// <param name="input">The input given to the indicator</param>
+        /// <returns>An IndicatorResult object including the status of the indicator</returns>
+        protected virtual IndicatorResult ValidateAndComputeNextValue(T input)
+        {
+            // default implementation always returns IndicatorStatus.Success
+            return new IndicatorResult(ComputeNextValue(input));
+        }
 
         /// <summary>
         /// Event invocator for the Updated event

@@ -14,6 +14,7 @@
 */
 
 using System;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Orders
 {
@@ -23,18 +24,17 @@ namespace QuantConnect.Orders
     public class MarketOnCloseOrder : Order
     {
         /// <summary>
-        /// Value of the order at limit price if a limit order, or market price if a market order.
+        /// MarketOnClose Order Type
         /// </summary>
-        public override decimal Value
+        public override OrderType Type
         {
-            get { return AbsoluteQuantity * Price; }
+            get { return OrderType.MarketOnClose; }
         }
 
         /// <summary>
         /// Intiializes a new instance of the <see cref="MarketOnCloseOrder"/> class.
         /// </summary>
         public MarketOnCloseOrder()
-            : base(OrderType.MarketOnClose)
         {
         }
 
@@ -42,23 +42,32 @@ namespace QuantConnect.Orders
         /// Intiializes a new instance of the <see cref="MarketOnCloseOrder"/> class.
         /// </summary>
         /// <param name="symbol">The security's symbol being ordered</param>
-        /// <param name="type">The security type of the symbol</param>
         /// <param name="quantity">The number of units to order</param>
         /// <param name="time">The current time</param>
         /// <param name="tag">A user defined tag for the order</param>
-        public MarketOnCloseOrder(string symbol, SecurityType type, int quantity, DateTime time, string tag = "")
-            : base(symbol, quantity, OrderType.MarketOnClose, time, tag, type)
+        public MarketOnCloseOrder(Symbol symbol, int quantity, DateTime time, string tag = "")
+            : base(symbol, quantity, time, tag)
         {
         }
 
         /// <summary>
-        /// Gets the value of this order at the given market price.
+        /// Gets the order value in units of the security's quote currency
         /// </summary>
-        /// <param name="currentMarketPrice">The current market price of the security</param>
-        /// <returns>The value of this order given the current market price</returns>
-        public override decimal GetValue(decimal currentMarketPrice)
+        /// <param name="security">The security matching this order's symbol</param>
+        protected override decimal GetValueImpl(Security security)
         {
-            return Quantity * currentMarketPrice;
+            return Quantity*security.Price;
+        }
+
+        /// <summary>
+        /// Creates a deep-copy clone of this order
+        /// </summary>
+        /// <returns>A copy of this order</returns>
+        public override Order Clone()
+        {
+            var order = new MarketOnCloseOrder();
+            CopyTo(order);
+            return order;
         }
     }
 }

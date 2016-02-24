@@ -14,6 +14,7 @@
 */
 
 using System;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Orders
 {
@@ -26,42 +27,47 @@ namespace QuantConnect.Orders
         /// Added a default constructor for JSON Deserialization:
         /// </summary>
         public MarketOrder()
-            : base(OrderType.Market)
         {
         }
 
         /// <summary>
-        /// Value of the order at market price.
+        /// Market Order Type
         /// </summary>
-        public override decimal Value
+        public override OrderType Type
         {
-            get
-            {
-                return Convert.ToDecimal(Quantity) * Price;
-            }
+            get { return OrderType.Market; }
         }
 
         /// <summary>
         /// New market order constructor
         /// </summary>
         /// <param name="symbol">Symbol asset we're seeking to trade</param>
-        /// <param name="type">Type of the security order</param>
         /// <param name="quantity">Quantity of the asset we're seeking to trade</param>
         /// <param name="time">Time the order was placed</param>
         /// <param name="tag">User defined data tag for this order</param>
-        public MarketOrder(string symbol, int quantity, DateTime time, string tag = "", SecurityType type = SecurityType.Base) :
-            base(symbol, quantity, OrderType.Market, time, tag, type)
+        public MarketOrder(Symbol symbol, int quantity, DateTime time, string tag = "")
+            : base(symbol, quantity, time, tag)
         {
         }
 
         /// <summary>
-        /// Gets the value of this order at the given market price.
+        /// Gets the order value in units of the security's quote currency
         /// </summary>
-        /// <param name="currentMarketPrice">The current market price of the security</param>
-        /// <returns>The value of this order given the current market price</returns>
-        public override decimal GetValue(decimal currentMarketPrice)
+        /// <param name="security">The security matching this order's symbol</param>
+        protected override decimal GetValueImpl(Security security)
         {
-            return Quantity*currentMarketPrice;
+            return Quantity*security.Price;
+        }
+
+        /// <summary>
+        /// Creates a deep-copy clone of this order
+        /// </summary>
+        /// <returns>A copy of this order</returns>
+        public override Order Clone()
+        {
+            var order = new MarketOrder();
+            CopyTo(order);
+            return order;
         }
     }
 }
